@@ -8,19 +8,21 @@ pub struct CPU {
     stack: [u16; 16], // Stored as 16 16 bit values
     
     // Registers the program can directly access and modify (Except for F)
-    gen_purpose_registers: [u8; 16],
+    pub gen_purpose_registers: [u8; 16],
     register_i: u16, // Special 16 bit register
 
     pub delay_timer: u8,
+    pub sound_timer: u8,
 
     
-    program_counter: u16,
+    pub program_counter: u16,
     stack_pointer: usize, 
 
     time: u8, // Will increase by 1 at a rate of 60 hz
 
     pub display: Display,
-    pub keypad: Keypad
+    pub keypad: Keypad,
+    pub screen_dirty: bool,
 }
 
 impl CPU {
@@ -37,13 +39,15 @@ impl CPU {
             stack_pointer: 0,
             time: 0,
             display: Display::new(),
-            keypad: Keypad::new()
+            keypad: Keypad::new(),
+            screen_dirty: false
         }
     }
 
     // Clears screen
     pub fn cls(&mut self) {
         self.display.clear();
+        self.screen_dirty = true;
     }
 
     // Returns from function
@@ -92,7 +96,7 @@ impl CPU {
 
     // Adds byte onto reg1
     pub fn add(&mut self, reg1: usize, byte: u8){
-        self.gen_purpose_registers[reg1] += byte;
+        self.gen_purpose_registers[reg1] = (self.gen_purpose_registers[reg1] as u16 + byte as u16) as u8;
     }
 
     // Sets reg1 to reg2
@@ -135,12 +139,12 @@ impl CPU {
         let sub1: u16 = self.gen_purpose_registers[reg1] as u16;
         let sub2: u16 = self.gen_purpose_registers[reg2] as u16;
         if sub1 < sub2 {
-            self.gen_purpose_registers[15] = 1;
-            self.gen_purpose_registers[reg1] = ((sub1 - sub2) % 256) as u16;
+            self.gen_purpose_registers[15] = 0;
+            self.gen_purpose_registers[reg1] = ((sub1 as i32 - sub2 as i32) % 256) as u8;
         }
         else{
-            self.gen_purpose_registers[15] = 0;
-            self.gen_purpose_registers[reg1] = (sub1 - sub2) as u16;
+            self.gen_purpose_registers[15] = 1;
+            self.gen_purpose_registers[reg1] = (sub1 - sub2) as u8;
         }
     }
 
@@ -155,12 +159,12 @@ impl CPU {
         let sub1: u16 = self.gen_purpose_registers[reg1] as u16;
         let sub2: u16 = self.gen_purpose_registers[reg2] as u16;
         if sub1 > sub2 {
-            self.gen_purpose_registers[15] = 1;
-            self.gen_purpose_registers[reg1] = ((sub2 - sub1) % 256) as u16;
+            self.gen_purpose_registers[15] = 0;
+            self.gen_purpose_registers[reg1] = ((sub2 - sub1)) as u8;
         }
         else{
-            self.gen_purpose_registers[15] = 0;
-            self.gen_purpose_registers[reg1] = (sub2 - sub1) as u16;
+            self.gen_purpose_registers[15] = 1;
+            self.gen_purpose_registers[reg1] = (sub2 - sub1) as u8;
         }
     }
 
@@ -207,18 +211,19 @@ impl CPU {
     pub fn drw(&mut self, reg1: usize, reg2: usize, num_bytes: u8) {
         let flag: u8 = self.display.draw(self.gen_purpose_registers[reg1], self.gen_purpose_registers[reg2], self.register_i, num_bytes, &self.memory);
         self.gen_purpose_registers[15] = flag;
+        self.screen_dirty = true;
     }
 
     // Checks if a key corresponding to reg1 is pressed and if so skips the next instruction
     pub fn skp(&mut self, reg1: usize) {
-        if self.keypad[(self.gen_purpose_registers[reg1] as usize)] {
+        if self.keypad.keys[(self.gen_purpose_registers[reg1] as usize)] {
             self.program_counter += 2;
         }
     }
 
     // Checks if a key corresponding to reg1 is pressed and if not skips the next instruction
     pub fn sknp(&mut self, reg1: usize) {
-        if !self.keypad[(self.gen_purpose_registers[reg1] as usize)] {
+        if !self.keypad.keys[(self.gen_purpose_registers[reg1] as usize)] {
             self.program_counter += 2;
         }
     }
@@ -246,7 +251,7 @@ impl CPU {
 
     // Moves I to the place that stores the sprite of the hex value stored at reg1
     pub fn ld_sprite(&mut self, reg1: usize) {
-        self.register_i = 0x50 + (self.gen_purpose_registers[reg1] * 5)
+        self.register_i = 0x50 + (self.gen_purpose_registers[reg1] as u16 * 5)
     }
 
     // Stores the decimal values of reg1 into memory 
@@ -263,14 +268,14 @@ impl CPU {
     // Copies values from registers 0 to reg1 to the values in memory starting at I
     pub fn ld_regtoI(&mut self, reg1: usize) {
         for i in 0..=reg1 {
-            self.memory[(self.register_i + i) as usize] = self.gen_purpose_registers[i];
+            self.memory[(self.register_i as usize + i) as usize] = self.gen_purpose_registers[i];
         }
     }
 
     // Copies values to registers 0 to reg1 from the values in memory starting at I
     pub fn ld_Itoreg(&mut self, reg1: usize){
         for i in 0..=reg1 {
-            self.gen_purpose_registers[i] = self.memory[(self.register_i + i) as usize];
+            self.gen_purpose_registers[i] = self.memory[(self.register_i as usize + i) as usize];
         }
     }
 }

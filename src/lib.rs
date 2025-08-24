@@ -12,9 +12,9 @@ use crate::io::load_rom;
 
 
 pub struct Chip8 {
-    cpu : CPU,
-    window: minifb::Window,
-    audio: Audio
+    pub cpu : CPU,
+    pub window: minifb::Window,
+    pub audio: Audio
 }
 
 impl Chip8 {

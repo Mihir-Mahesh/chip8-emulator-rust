@@ -1,6 +1,6 @@
 use minifb;
-use crate::keypad::Keypad;
-use crate::display::Display;
+use super::keypad;
+use super::display;
 use std::fs::File;
 use std::io::Read;
 use minifb::Key;
@@ -9,7 +9,7 @@ pub fn create_window(scale: usize) -> minifb::Window {
     minifb::Window::new("Chip-8 Emulator", 64 * scale, 32 * scale, minifb::WindowOptions::default()).unwrap()
 }
 
-pub fn log_keys(window: & minifb::Window, keypad: &mut Keypad) {
+pub fn log_keys(window: & minifb::Window, keypad: &mut keypad::Keypad) {
     let mut new_keys = [false; 16];
 
     new_keys[0x1] = window.is_key_down(Key::Key1);
@@ -36,28 +36,27 @@ pub fn log_keys(window: & minifb::Window, keypad: &mut Keypad) {
 
 }
 
-pub fn update_screen(window: &minifb::Window, display: &Display) {
+pub fn update_screen(window: &mut minifb::Window, display: & display::Display) {
     let mut buff: Vec<u32> = vec![0; 2048];
     let mut ind = 0;
 
-    for i in 0..64 {
-        for j in 0..32 {
-            if display.gui[j][i]{
+    for i in 0..32 {
+        for j in 0..64 {
+            if display.gui[i][j]{
                 buff[ind] = 0xFFFFFF
             }
             ind += 1;
         }
     }
 
-    window.update_with_buffer(buff, 64, 32).unwrap();
+    window.update_with_buffer(&buff, 64, 32).unwrap();
 }
 
 
 pub fn load_rom(memory: &mut [u8; 4096], path: &str) {
-    let mut file = File::open(path)?;
+    let mut file = File::open(path).expect("Failed to open file");
     let mut buff = Vec::new();
-
-    file.read_to_end(&mut buff)?;
+    file.read_to_end(&mut buff).expect("Failed to read file");
 
     let start = 0x200;
     let end = start + buff.len();

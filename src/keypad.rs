@@ -1,5 +1,5 @@
 pub struct Keypad {
-    keys: [bool; 16],
+    pub keys: [bool; 16],
     past_keys: [bool; 16]
 }
 
@@ -12,7 +12,6 @@ impl Keypad {
     }
 
     pub fn keys_changed(&self) -> Option<usize> {
-        let mut change: bool = false;
         for i in 0..16 {
             if self.keys[i] != self.past_keys[i]{
                 return Some(i)
@@ -24,5 +23,7 @@ impl Keypad {
     pub fn change_keys(&mut self, new_keys: [bool; 16]) {
         self.past_keys = self.keys;
         self.keys = new_keys;
+        if let Some(key_code) = self.keys_changed() {
+        }
     }
 }

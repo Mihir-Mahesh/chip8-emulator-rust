@@ -31,12 +31,12 @@ impl Display {
                 if bit != 0 {
                     let x_coord: usize = (x + ind) % 64;
                     let y_coord: usize = (y + curr_line) % 32;
-                    if self.gui[x_coord][y_coord]{
+                    if self.gui[y_coord][x_coord]{
                         flag = 1;
-                        self.gui[x_coord][y_coord] = false;
+                        self.gui[y_coord][x_coord] = false;
                     }
                     else{
-                        self.gui[x_coord][y_coord] = true;
+                        self.gui[y_coord][x_coord] = true;
                     }
                 }
 

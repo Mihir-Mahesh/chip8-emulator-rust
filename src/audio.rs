@@ -2,6 +2,7 @@ use rodio::{OutputStream, Sink, Source};
 use std::time::Duration;
 
 pub struct Audio {
+    _stream: OutputStream,
     sink: Sink,
     pub is_playing: bool
 }
@@ -10,7 +11,7 @@ impl Audio {
     pub fn new() -> Self {
         let (_stream, handle) = OutputStream::try_default().unwrap();
         let sink = Sink::try_new(&handle).unwrap();
-        Audio { sink: sink, is_playing: false }
+        Audio { _stream, sink, is_playing: false }
     }
 
     pub fn play(&mut self) {
