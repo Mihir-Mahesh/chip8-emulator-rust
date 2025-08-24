@@ -22,7 +22,7 @@ impl Chip8 {
     pub fn new() -> Self {
         Chip8 {
             cpu : CPU::new(),
-            window : io::create_window(10),
+            window : io::create_window(25),
             audio : Audio::new()
         }
     }
