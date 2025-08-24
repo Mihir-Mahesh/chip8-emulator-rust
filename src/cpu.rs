@@ -1,20 +1,17 @@
-mod keypad;
-use keypad::Keypad;
-use minifb;
-mod io
+use crate::keypad::Keypad;
+use crate::display::Display;
 
 use rand::Rng;
 
-struct CPU {
-    memory: [u8; 4096],
+pub struct CPU {
+    pub memory: [u8; 4096],
     stack: [u16; 16], // Stored as 16 16 bit values
     
     // Registers the program can directly access and modify (Except for F)
     gen_purpose_registers: [u8; 16],
     register_i: u16, // Special 16 bit register
 
-    delay_timer: u8,
-    sound_timer: u8,
+    pub delay_timer: u8,
 
     
     program_counter: u16,
@@ -22,8 +19,8 @@ struct CPU {
 
     time: u8, // Will increase by 1 at a rate of 60 hz
 
-    display: Display
-    keypad: Keypad
+    pub display: Display,
+    pub keypad: Keypad
 }
 
 impl CPU {
@@ -36,7 +33,7 @@ impl CPU {
             register_i: 0,
             delay_timer: 0,
             sound_timer: 0,
-            program_counter: 0,
+            program_counter: 0x200,
             stack_pointer: 0,
             time: 0,
             display: Display::new(),
@@ -123,12 +120,12 @@ impl CPU {
         let add1: u16 = self.gen_purpose_registers[reg1] as u16;
         let add2: u16 = self.gen_purpose_registers[reg2] as u16;
 
-        if (add1 + add2 > 255){
-            self.gen_purpose_registers[16] = 1;
+        if add1 + add2 > 255{
+            self.gen_purpose_registers[15] = 1;
             self.gen_purpose_registers[reg1] = ((add1 + add2) % 256) as u8;
         }
         else{
-            self.gen_purpose_registers[16] = 0;
+            self.gen_purpose_registers[15] = 0;
             self.gen_purpose_registers[reg1] = (add1 + add2) as u8;
         }
     }
@@ -137,7 +134,7 @@ impl CPU {
     pub fn sub_reg(&mut self, reg1: usize, reg2: usize) {
         let sub1: u16 = self.gen_purpose_registers[reg1] as u16;
         let sub2: u16 = self.gen_purpose_registers[reg2] as u16;
-        if (sub1 < sub2) {
+        if sub1 < sub2 {
             self.gen_purpose_registers[15] = 1;
             self.gen_purpose_registers[reg1] = ((sub1 - sub2) % 256) as u16;
         }
@@ -157,7 +154,7 @@ impl CPU {
     pub fn sub_rev(&mut self, reg1: usize, reg2: usize) {
         let sub1: u16 = self.gen_purpose_registers[reg1] as u16;
         let sub2: u16 = self.gen_purpose_registers[reg2] as u16;
-        if (sub1 > sub2) {
+        if sub1 > sub2 {
             self.gen_purpose_registers[15] = 1;
             self.gen_purpose_registers[reg1] = ((sub2 - sub1) % 256) as u16;
         }
@@ -169,7 +166,7 @@ impl CPU {
 
     // Sets reg1 to reg2 shifted to the left by one. Sets Vf to 1 if reg2 is most sig bit is 1 and zero if otherwise
     pub fn shl(&mut self, reg1: usize, reg2: usize) {
-        if (self.gen_purpose_registers[reg2] >= 128){
+        if self.gen_purpose_registers[reg2] >= 128{
             self.gen_purpose_registers[15] = 1;
         }
         else{
@@ -199,7 +196,7 @@ impl CPU {
 
 
     // Sets reg1 to a random byte and Ands it with byte
-    pub fn rnd(&mut self, reg1: usize, byte) {
+    pub fn rnd(&mut self, reg1: usize, byte: u8) {
         let mut rng = rand::thread_rng();
         let random_u8: u8 = rng.gen_range(0..=255);
 
@@ -208,50 +205,38 @@ impl CPU {
 
     // Display n-byte sprite starting at memory location I at (reg1, reg2), set VF = 1 if a pixel is erased and zero otherwise
     pub fn drw(&mut self, reg1: usize, reg2: usize, num_bytes: u8) {
-        let flag: u8 = display.draw(self.gen_purpose_registers[reg1], self.gen_purpose_registers[reg2], self.register_i, num_bytes, &self.memory);
+        let flag: u8 = self.display.draw(self.gen_purpose_registers[reg1], self.gen_purpose_registers[reg2], self.register_i, num_bytes, &self.memory);
         self.gen_purpose_registers[15] = flag;
     }
 
     // Checks if a key corresponding to reg1 is pressed and if so skips the next instruction
     pub fn skp(&mut self, reg1: usize) {
-        if (self.keypad[(self.gen_purpose_registers[reg1] as usize)]) {
+        if self.keypad[(self.gen_purpose_registers[reg1] as usize)] {
             self.program_counter += 2;
         }
     }
 
     // Checks if a key corresponding to reg1 is pressed and if not skips the next instruction
     pub fn sknp(&mut self, reg1: usize) {
-        if (!self.keypad[(self.gen_purpose_registers[reg1] as usize)]) {
+        if !self.keypad[(self.gen_purpose_registers[reg1] as usize)] {
             self.program_counter += 2;
         }
     }
 
-    // Moves most recent key press into reg1 (waits until then)
-    pub fn ld_key(&mut self, reg1: usize, window: &minifb::Window){
-        while true {
-            log_keys(window, &mut self.keypad);
-
-            let new_key = self.keypad.keys_changed();
-            let mut something = false;
-            match new_key {
-                None => continue,
-                Some(k) => something = true
-            }
-            if (something) {
-                self.gen_purpose_registers[reg1] = new_key.unwrap();
-                break;
-            }
-        }
-    }
-
     // Moves delay timer value into reg1
-    pub fn ld_delay(&mut self, reg1: usize){
+    pub fn ld_delay_toreg(&mut self, reg1: usize){
         self.gen_purpose_registers[reg1] = self.delay_timer;
     }
 
-    // Moves sound timer value into reg1
+
+    // Moves delay timer value into reg1
+    pub fn ld_delay(&mut self, reg1: usize){
+        self.delay_timer = self.gen_purpose_registers[reg1];
+    }
+
+    // Moves sound timer value from reg1
     pub fn ld_sound(&mut self, reg1: usize){
-        self.gen_purpose_registers[reg1] = self.sound_timer;
+        self.sound_timer = self.gen_purpose_registers[reg1];
     }
 
     // Adds the value at Vx to I

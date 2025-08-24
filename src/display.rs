@@ -1,11 +1,11 @@
-struct Display {
-    gui: [[bool; 64]; 32]
+pub struct Display {
+    pub gui: [[bool; 64]; 32]
 }
 
 impl Display {
     pub fn new() -> Self {
         Display{
-            gui: [[false; 32]; 64]
+            gui: [[false; 64]; 32]
         }
     }
 
@@ -31,7 +31,7 @@ impl Display {
                 if bit != 0 {
                     let x_coord: usize = (x + ind) % 64;
                     let y_coord: usize = (y + curr_line) % 32;
-                    if (self.gui[x_coord][y_coord]){
+                    if self.gui[x_coord][y_coord]{
                         flag = 1;
                         self.gui[x_coord][y_coord] = false;
                     }
